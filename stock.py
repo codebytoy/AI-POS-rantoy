@@ -136,6 +136,37 @@ def sell_product():
 
     print("ไม่พบสินค้านี้")
 
+def print_receipt(items, total_all, money, change):
+    now = datetime.now()
+    receipt_no = len(sales) + 1
+
+    print("\n" + "=" * 36)
+    print("          ร้านชำของคุณต่อย")
+    print("          AI POS by Toy")
+    print("=" * 36)
+    print(f"เลขที่ใบเสร็จ : {receipt_no:06d}")
+    print(f"วันที่        : {now.strftime('%d/%m/%Y')}")
+    print(f"เวลา         : {now.strftime('%H:%M:%S')}")
+    print("-" * 36)
+
+    for item in items:
+        name = item["name"]
+        qty = item["qty"]
+        price = item["price"]
+        total = item["total"]
+
+        print(f"{name}")
+        print(f"  {qty} x {price:.2f} = {total:.2f} บาท")
+
+    print("-" * 36)
+    print(f"รวมเงิน      {total_all:.2f} บาท")
+    print(f"รับเงิน      {money:.2f} บาท")
+    print(f"เงินทอน      {change:.2f} บาท")
+    print("=" * 36)
+    print("        ขอบคุณที่ใช้บริการ")
+    print("=" * 36)
+
+
 def sell_product_by_search():
     keyword = input("พิมพ์ชื่อสินค้าหรือบาร์โค้ด: ")
 
@@ -185,12 +216,22 @@ def sell_product_by_search():
         "total": total_price
     }
 
+    money = float(input("รับเงิน: "))
+
+    if money < total_price:
+        print("เงินไม่พอ ยังไม่บันทึกยอดขาย")
+        product["qty"] = product["qty"] + sell_qty
+        save_json("products.json", products)
+        return
+
+    change = money - total_price
+
     sales.append(sale)
     save_json("sales.json", sales)
 
-    print("ขายสินค้าเรียบร้อย")
-    print(f"ขาย {product['name']} จำนวน {sell_qty} ชิ้น")
-    print(f"รวมเงิน {total_price} บาท")
+    items = [sale]
+    print_receipt(items, total_price, money, change)
+
     print(f"คงเหลือ {product['qty']} ชิ้น")
 
 def scan_cart():
@@ -309,6 +350,7 @@ def scan_cart():
     print("=" * 30)
 
     cart.clear()
+
 def check_low_stock():
     found = False
 
