@@ -29,7 +29,7 @@
 -[x] รายงานกำไร
 -[x] แยก storerage.py
 -[x] เริ่มแยก product.py
-
+-[x] Git และ GitHub Backup
 
 ---
 

@@ -240,17 +240,34 @@ def scan_cart():
     receipt_no = len(sales) + 1
 
     while True:
-        barcode = input("สแกนบาร์โค้ดสินค้า / 0=คิดเงิน / del=ลบสินค้า: ")
+        print("\n====== ตะกร้าสินค้า ======")
+        for item in cart:
+            print(f"{item['name']} x {item['qty']} = {item['total']} บาท")
+
+        total_all = 0
+        for item in cart:
+            total_all += item["total"]
+
+        print("-" * 30)
+        print(f"รวมทั้งหมด: {total_all:.2f} บาท")
+        print("คำสั่ง: 0=คิดเงิน | del=ลบสินค้า | search=ค้นหาด้วยชื่อ")
+
+        barcode = input("สแกนบาร์โค้ดสินค้า: ")
 
         if barcode == "0":
             break
+
+        if barcode == "search":
+            product = find_product_by_keyword()
+            if product == None:
+                continue
+            barcode = product["barcode"]
 
         if barcode == "del":
             if len(cart) == 0:
                 print("ยังไม่มีสินค้าในตะกร้า")
                 continue
 
-            print("\n===== สินค้าในตะกร้า =====")
             for i, item in enumerate(cart, start=1):
                 print(f"{i}. {item['name']} x {item['qty']} = {item['total']} บาท")
 
@@ -270,36 +287,47 @@ def scan_cart():
             if barcode == product["barcode"]:
                 qty = int(input("จำนวน: "))
 
-                if qty <= product["qty"]:
-                    item_total = product["price"] * qty
+                if qty <= 0:
+                    print("จำนวนต้องมากกว่า 0")
+                    found = True
+                    break
 
-                    found_in_cart = False
+                current_qty_in_cart = 0
+                for cart_item in cart:
+                    if cart_item["barcode"] == barcode:
+                        current_qty_in_cart += cart_item["qty"]
 
-                    for cart_item in cart:
-                        if cart_item["barcode"] == barcode:
-                            cart_item["qty"] += qty
-                            cart_item["total"] += item_total
-                            found_in_cart = True
-                            break
-
-                    if found_in_cart == False:
-                        item = {
-                            "receipt_no": receipt_no,
-                            "datetime": now.strftime("%d/%m/%Y %H:%M:%S"),
-                            "barcode": product["barcode"],
-                            "name": product["name"],
-                            "qty": qty,
-                            "cost": product.get("cost", 0),
-                            "price": product["price"],
-                            "total": item_total
-                        }
-
-                        cart.append(item)
-
-                    print(f"เพิ่ม {product['name']} จำนวน {qty} ชิ้น เข้าตะกร้า")
-                else:
+                if current_qty_in_cart + qty > product["qty"]:
                     print("สินค้าไม่พอขาย")
+                    found = True
+                    break
 
+                item_total = product["price"] * qty
+
+                found_in_cart = False
+
+                for cart_item in cart:
+                    if cart_item["barcode"] == barcode:
+                        cart_item["qty"] += qty
+                        cart_item["total"] += item_total
+                        found_in_cart = True
+                        break
+
+                if found_in_cart == False:
+                    item = {
+                        "receipt_no": receipt_no,
+                        "datetime": now.strftime("%d/%m/%Y %H:%M:%S"),
+                        "barcode": product["barcode"],
+                        "name": product["name"],
+                        "qty": qty,
+                        "cost": product.get("cost", 0),
+                        "price": product["price"],
+                        "total": item_total
+                    }
+
+                    cart.append(item)
+
+                print(f"เพิ่ม {product['name']} จำนวน {qty} ชิ้น เข้าตะกร้า")
                 found = True
                 break
 
@@ -310,21 +338,9 @@ def scan_cart():
         print("ไม่มีสินค้าในตะกร้า")
         return
 
-    print("\n===== สรุปตะกร้าสินค้า =====")
     total_all = 0
-
-    print("=" * 30)
-    print("      ร้านชำของคุณต่อย")
-    print(f"ใบเสร็จเลขที่ : {receipt_no:06d}")
-    print(now.strftime("%d/%m/%Y %H:%M:%S"))
-    print("=" * 30)
-
     for item in cart:
-        print(f"{item['name']} x {item['qty']} = {item['total']} บาท")
         total_all += item["total"]
-
-    print("-" * 30)
-    print(f"รวมทั้งหมด {total_all} บาท")
 
     money = float(input("รับเงิน: "))
 
@@ -333,7 +349,6 @@ def scan_cart():
         return
 
     change = money - total_all
-    print(f"เงินทอน {change:.2f} บาท")
 
     for item in cart:
         for product in products:
@@ -345,9 +360,7 @@ def scan_cart():
     save_json("products.json", products)
     save_json("sales.json", sales)
 
-    print("ขายสินค้าทั้งตะกร้าเรียบร้อย")
-    print("ขอบคุณที่ใช้บริการ")
-    print("=" * 30)
+    print_receipt(cart, total_all, money, change)
 
     cart.clear()
 
