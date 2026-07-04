@@ -25,6 +25,7 @@ def product_menu():
         print("6. แก้ไขข้อมูลสินค้า")
         print("7. ลบสินค้าออกจากระบบ")
         print("8. ค้นหาสินค้าด้วยบาร์โค้ดหรือชื่อ")
+        print("9. ค้นหาแบบเลือกเลข")
         print("0. กลับเมนูหลัก")
 
         choice = input("เลือกเมนู: ")
@@ -45,6 +46,8 @@ def product_menu():
             delete_product()
         elif choice == "8":
             search_product_detail()
+        elif choice == "9":
+            find_product_by_keyword()
         elif choice == "0":
             break
         else:
@@ -56,6 +59,7 @@ def sell_menu():
         print("\n====== ขายสินค้า ======")
         print("1. ขายสินค้าแบบเร็ว")
         print("2. ตะกร้าสินค้า")
+        print("3. ขายด้วยชื่อสินค้า")
         print("0. กลับเมนูหลัก")
 
         choice = input("เลือกเมนู: ")
@@ -64,6 +68,8 @@ def sell_menu():
             sell_product()
         elif choice == "2":
             scan_cart()
+        elif choice == "3":
+            sell_product_by_search()
         elif choice == "0":
             break
         else:
@@ -129,6 +135,64 @@ def sell_product():
             return
 
     print("ไม่พบสินค้านี้")
+
+def sell_product_by_search():
+    keyword = input("พิมพ์ชื่อสินค้าหรือบาร์โค้ด: ")
+
+    results = []
+
+    for product in products:
+        if keyword in product["name"] or keyword in product["barcode"]:
+            results.append(product)
+
+    if len(results) == 0:
+        print("ไม่พบสินค้า")
+        return
+
+    print("\n===== ผลการค้นหา =====")
+    for i, product in enumerate(results, start=1):
+        print(f"{i}. {product['name']} | ราคา {product['price']} บาท | เหลือ {product['qty']} ชิ้น")
+
+    choice = int(input("เลือกเลขสินค้า: "))
+
+    if choice < 1 or choice > len(results):
+        print("เลือกไม่ถูกต้อง")
+        return
+
+    product = results[choice - 1]
+
+    sell_qty = int(input("จำนวนที่ขาย: "))
+
+    if sell_qty <= 0:
+        print("จำนวนต้องมากกว่า 0")
+        return
+
+    if sell_qty > product["qty"]:
+        print("สินค้าไม่พอขาย")
+        return
+
+    product["qty"] = product["qty"] - sell_qty
+    save_json("products.json", products)
+
+    total_price = product["price"] * sell_qty
+
+    sale = {
+        "barcode": product["barcode"],
+        "name": product["name"],
+        "qty": sell_qty,
+        "cost": product.get("cost", 0),
+        "price": product["price"],
+        "total": total_price
+    }
+
+    sales.append(sale)
+    save_json("sales.json", sales)
+
+    print("ขายสินค้าเรียบร้อย")
+    print(f"ขาย {product['name']} จำนวน {sell_qty} ชิ้น")
+    print(f"รวมเงิน {total_price} บาท")
+    print(f"คงเหลือ {product['qty']} ชิ้น")
+
 def scan_cart():
     cart = []
     now = datetime.now()

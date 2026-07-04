@@ -185,4 +185,27 @@ def delete_product():
 
     print("ไม่พบสินค้านี้")
 
-    
+def find_product_by_keyword():
+    keyword = input("พิมพ์ชื่อสินค้าหรือบาร์โค้ด: ")
+
+    results = []
+
+    for product in products:
+        if keyword in product["name"] or keyword in product["barcode"]:
+            results.append(product)
+
+    if len(results) == 0:
+        print("ไม่พบสินค้า")
+        return None
+
+    print("\n===== ผลการค้นหา =====")
+    for i, product in enumerate(results, start=1):
+        print(f"{i}. {product['name']} | ราคา {product['price']} บาท | เหลือ {product['qty']} ชิ้น")
+
+    choice = int(input("เลือกเลขสินค้า: "))
+
+    if 1 <= choice <= len(results):
+        return results[choice - 1]
+    else:
+        print("เลือกไม่ถูกต้อง")
+        return None    
