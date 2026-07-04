@@ -1,0 +1,6 @@
+name = input ("ชื่อของคุณคืออะไร")
+print("สวัสดี", name)
+age = input ("คุณอายุเท่าไหร่")
+print("คุณอายุ", age, "ปี")
+favorite = input("คุณชอบกินอะไร:")
+print("คุณชอบกิน", favorite)
