@@ -240,6 +240,25 @@ def scan_cart():
     receipt_no = len(sales) + 1
 
     while True:
+        print("\n" * 2)
+        print("=" * 35)
+        print("        ตะกร้าสินค้า")
+        print("=" * 35)
+
+        total_all = 0
+
+        if len(cart) == 0:
+            print("ยังไม่มีสินค้า")
+        else:
+            for i, item in enumerate(cart, start=1):
+                print(f"{i}. {item['name']}")
+                print(f"   {item['qty']} x {item['price']:.2f} = {item['total']:.2f}")
+
+                total_all += item["total"]
+
+            print("-" * 35)
+            print(f"รวมทั้งหมด {total_all:.2f} บาท")
+            print("=" * 35)
         print("\n====== ตะกร้าสินค้า ======")
         for item in cart:
             print(f"{item['name']} x {item['qty']} = {item['total']} บาท")
@@ -252,7 +271,7 @@ def scan_cart():
         print(f"รวมทั้งหมด: {total_all:.2f} บาท")
         print("คำสั่ง: 0=คิดเงิน | del=ลบสินค้า | search=ค้นหาด้วยชื่อ")
 
-        barcode = input("สแกนบาร์โค้ดสินค้า: ")
+        barcode = input("nสแกนสินค้า / 0=คิดเงิน / del=ลบ / search=ค้นหา: ")
 
         if barcode == "0":
             break

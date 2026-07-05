@@ -104,5 +104,24 @@
         "cost": 45.0,
         "price": 60.0,
         "total": 120.0
+    },
+    {
+        "receipt_no": 14,
+        "datetime": "05/07/2026 00:13:37",
+        "barcode": "88500002",
+        "name": "กาแฟ",
+        "qty": 2,
+        "cost": 45.0,
+        "price": 60.0,
+        "total": 120.0
+    },
+    {
+        "receipt_no": 15,
+        "datetime": "05/07/2026 12:17:12",
+        "barcode": 88500002,
+        "name": "กาแฟ",
+        "qty": 1,
+        "price": 60.0,
+        "total": 60.0
     }
 ]
