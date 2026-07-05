@@ -30,6 +30,40 @@ def search_product():
                 )
             )
 
+def barcode_scan(event=None):
+    keyword = search_entry.get().strip()
+
+    for product in products:
+        if product["barcode"] == keyword:
+            for item in cart:
+                if item["barcode"] == product["barcode"]:
+                    item["qty"] += 1
+                    item["total"] = item["qty"] * item["price"]
+                    refresh_cart()
+                    search_entry.delete(0, tk.END)
+                    search_entry.focus()
+                    return
+
+            cart.append({
+                "barcode": product["barcode"],
+                "name": product["name"],
+                "qty": 1,
+                "price": product["price"],
+                "total": product["price"]
+            })
+
+            refresh_cart()
+            search_entry.delete(0, tk.END)
+            search_entry.focus()
+            return
+
+    messagebox.showinfo("ไม่พบสินค้า", "ไม่มีบาร์โค้ดนี้ กำลังเปิดหน้าเพิ่มสินค้า")
+
+    search_entry.delete(0, tk.END)
+    search_entry.focus()
+
+    add_product_window()
+    return
 
 def add_to_cart(event):
     selected = product_table.focus()
@@ -82,6 +116,95 @@ def refresh_cart():
 
 
 root = tk.Tk()
+
+root.title("AI POS by Toy | Version 0.4")
+root.geometry("1100x750")
+
+def add_product_window():
+    window = tk.Toplevel(root)
+    window.title("เพิ่มสินค้า")
+    window.geometry("400x350")
+
+    tk.Label(window, text="บาร์โค้ด").pack()
+    barcode_entry = tk.Entry(window, width=30)
+    barcode_entry.pack()
+
+    tk.Label(window, text="ชื่อสินค้า").pack()
+    name_entry = tk.Entry(window, width=30)
+    name_entry.pack()
+
+    tk.Label(window, text="ต้นทุน").pack()
+    cost_entry = tk.Entry(window, width=30)
+    cost_entry.pack()
+
+    tk.Label(window, text="ราคาขาย").pack()
+    price_entry = tk.Entry(window, width=30)
+    price_entry.pack()
+
+    tk.Label(window, text="จำนวน").pack()
+    qty_entry = tk.Entry(window, width=30)
+    qty_entry.pack()
+
+    def save_product():
+        barcode = barcode_entry.get().strip()
+        name = name_entry.get().strip()        
+        
+        if barcode == "" or name == "":
+            messagebox.showwarning("แจ้งเตือน", "กรุณากรอกบาร์โค้ดและชื่อสินค้า")
+            return
+
+        for product in products:
+            if product["barcode"] == barcode:
+                messagebox.showwarning("สินค้าซ้ำ", "บาร์โค้ดนี้มีอยู่แล้วในระบบ")
+                return
+        
+        cost = float(cost_entry.get())
+        price = float(price_entry.get())
+        qty = int(qty_entry.get())
+
+        new_product = {
+            "barcode": barcode,
+            "name": name,
+            "cost": cost,
+            "price": price,
+            "qty": qty
+        }
+
+        products.append(new_product)
+        save_json("products.json", products)
+
+        messagebox.showinfo("สำเร็จ", "เพิ่มสินค้าเรียบร้อย")
+
+        cart.append({
+            "barcode": barcode,
+            "name": name,
+            "qty": 1,
+            "price": price,
+            "total": price
+        })
+
+        refresh_cart()
+
+        window.destroy()
+        search_entry.delete(0, tk.END)
+        search_entry.focus()
+        
+        
+
+    tk.Button(window, text="บันทึก",command=save_product).pack(pady=10)
+    
+    barcode_entry.focus()
+
+# ===== MENU =====
+menubar = tk.Menu(root)
+root.config(menu=menubar)
+
+file_menu = tk.Menu(menubar, tearoff=0)
+menubar.add_cascade(label="ไฟล์", menu=file_menu)
+
+file_menu.add_command(label="เพิ่มสินค้า",command=add_product_window)
+file_menu.add_separator()
+file_menu.add_command(label="ออกจากโปรแกรม", command=root.quit)
 root.title(f"{APP_NAME} - {VERSION}")
 root.geometry("900x850")
 
@@ -96,7 +219,9 @@ search_frame = tk.Frame(root)
 search_frame.pack(pady=10)
 
 search_entry = tk.Entry(search_frame, font=("Arial", 16), width=30)
+search_entry.focus()
 search_entry.pack(side="left", padx=5)
+search_entry.bind("<Return>", barcode_scan)
 
 search_button = tk.Button(
     search_frame,
@@ -148,9 +273,9 @@ cart_table.heading("name", text="สินค้า")
 cart_table.heading("qty", text="จำนวน")
 cart_table.heading("total", text="รวม")
 
-cart_table.column("name", width=350)
-cart_table.column("qty", width=100)
-cart_table.column("total", width=150)
+cart_table.column("name", width=420, anchor="w")
+cart_table.column("qty", width=80, anchor="center")
+cart_table.column("total", width=120, anchor="e")
 
 cart_table.pack(pady=5)
 
@@ -233,7 +358,9 @@ def checkout():
     cart.clear()
     refresh_cart()
     money_entry.delete(0, tk.END)
-    search_product()
+    search_entry.delete(0, tk.END)
+    product_table.delete(*product_table.get_children())
+    search_entry.focus()
 
 checkout_button = tk.Button(
     payment_frame,
@@ -243,4 +370,17 @@ checkout_button = tk.Button(
 )
 checkout_button.pack(side="left", padx=10)
 
+def clear_cart():
+    cart.clear()
+    refresh_cart()
+    money_entry.delete(0, tk.END)
+clear_button = tk.Button(
+    payment_frame,
+    text="ล้างตะกร้า",
+    font=("Arial", 16, "bold"),
+    command=clear_cart
+)
+clear_button.pack(side="left", padx=10)
+root.bind("<F2>", lambda event: checkout())
+root.bind("<Escape>", lambda event: clear_cart())
 root.mainloop()
