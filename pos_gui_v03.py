@@ -35,8 +35,21 @@ def barcode_scan(event=None):
 
     for product in products:
         if product["barcode"] == keyword:
+            if product["qty"] <= 0:
+
+                messagebox.showerror("สินค้าหมด", f"{product['name']} หมดสต๊อกแล้ว")
+                search_entry.delete(0, tk.END)
+                search_entry.focus()
+            
+                return
             for item in cart:
                 if item["barcode"] == product["barcode"]:
+                    if item["qty"] >= product["qty"]:
+                        messagebox.showerror("สต๊อกไม่พอ", f"{product['name']} เหลือแค่ {product['qty']}")
+                        search_entry.delete(0, tk.END)
+                        search_entry.focus()
+                        return
+
                     item["qty"] += 1
                     item["total"] = item["qty"] * item["price"]
                     refresh_cart()
@@ -303,6 +316,8 @@ money_entry = tk.Entry(
 )
 money_entry.pack(side="left", padx=5)
 def checkout():
+    print("กดคิดเงินแล้ว")
+
     if len(cart) == 0:
         messagebox.showwarning("แจ้งเตือน", "ยังไม่มีสินค้าในตะกร้า")
         return
@@ -327,6 +342,28 @@ def checkout():
     now = datetime.now()
     receipt_no = len(sales) + 1
 
+    receipt_text = ""
+    receipt_text += "================================\n"
+    receipt_text += "        AI POS by Toy\n"
+    receipt_text += "================================\n"
+    receipt_text += f"เลขที่ : {receipt_no:06d}\n"
+    receipt_text += f"วันที่ : {now.strftime('%d/%m/%Y %H:%M:%S')}\n"
+    receipt_text += "--------------------------------\n"
+
+    for item in cart:
+        receipt_text += (
+            f"{item['name']}\n"
+            f"{item['qty']} x {item['price']:.2f} = {item['total']:.2f}\n"
+        )
+
+    receipt_text += "--------------------------------\n"
+    receipt_text += f"รวมเงิน : {total_all:.2f} บาท\n"
+    receipt_text += f"รับเงิน : {money:.2f} บาท\n"
+    receipt_text += f"เงินทอน : {change:.2f} บาท\n"
+    receipt_text += "================================\n"
+    receipt_text += "      ขอบคุณที่ใช้บริการ\n"
+    receipt_text += "================================\n"
+
     for item in cart:
         for product in products:
             if item["barcode"] == product["barcode"]:
@@ -347,12 +384,11 @@ def checkout():
     save_json("products.json", products)
     save_json("sales.json", sales)
 
+    print(receipt_text)
+
     messagebox.showinfo(
         "คิดเงินสำเร็จ",
-        f"ใบเสร็จเลขที่ {receipt_no:06d}\n"
-        f"รวมเงิน {total_all:.2f} บาท\n"
-        f"รับเงิน {money:.2f} บาท\n"
-        f"เงินทอน {change:.2f} บาท"
+        receipt_text
     )
 
     cart.clear()
@@ -368,7 +404,7 @@ checkout_button = tk.Button(
     font=("Arial", 16, "bold"),
     command=checkout
 )
-checkout_button.pack(side="left", padx=10)
+checkout_button.pack(side="left", padx=10)    
 
 def clear_cart():
     cart.clear()
