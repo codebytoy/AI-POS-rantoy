@@ -18,7 +18,7 @@
         "name": "น้ำดื่มเอ็มเอ็น 350 มล.",
         "cost": 2.08,
         "price": 3.0,
-        "qty": 10
+        "qty": 4
     },
     {
         "barcode": "https://qr.page/g/tcMVwdNw4",
@@ -68,5 +68,12 @@
         "cost": 150.0,
         "price": 200.0,
         "qty": -1
+    },
+    {
+        "barcode": "6974105671394",
+        "name": "กระดาษทิชชู่lover",
+        "cost": 8.0,
+        "price": 10.0,
+        "qty": 24
     }
 ]

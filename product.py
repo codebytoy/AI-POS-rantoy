@@ -209,3 +209,10 @@ def find_product_by_keyword():
     else:
         print("เลือกไม่ถูกต้อง")
         return None    
+
+def find_product_by_barcode(products, barcode):
+    for product in products:
+        if str(product.get("barcode")) == str(barcode):
+            return product
+
+    return None
