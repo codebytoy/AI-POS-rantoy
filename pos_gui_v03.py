@@ -1,7 +1,13 @@
 import tkinter as tk
 import win32print
 from tkinter import ttk, messagebox
-from storage import load_json, save_json
+from storage import (
+    load_products,
+    save_products,
+    load_sales,
+    save_sales,
+)
+from database import get_products, add_product, update_product_stock, find_product_by_barcode_db
 from product import find_product_by_barcode
 from datetime import datetime
 
@@ -9,8 +15,8 @@ from datetime import datetime
 APP_NAME = "AI POS by Toy"
 VERSION = "0.3 Demo"
 
-products = load_json("products.json")
-sales = load_json("sales.json")
+products = get_products()
+sales = load_sales()
 cart = []
 
 
@@ -19,7 +25,9 @@ def search_product():
 
     product_table.delete(*product_table.get_children())
 
-    for product in products:
+    latest_products = get_products()
+
+    for product in latest_products:
         if keyword in product["name"] or keyword in product["barcode"]:
             product_table.insert(
                 "",
@@ -33,10 +41,12 @@ def search_product():
             )
 
 def barcode_scan(event=None):
-    keyword = search_entry.get().strip()
+    barcode = search_entry.get().strip()
 
+    products = get_products()
+    product = find_product_by_barcode(products, barcode)
     
-    product = find_product_by_barcode(products, keyword)
+    
 
     if product is None:
         messagebox.showinfo("ไม่พบสินค้า", "ไม่พบสินค้า กำลังเปิดหน้าต่างเพิ่มสินค้า")
@@ -56,17 +66,17 @@ def barcode_scan(event=None):
         if item["barcode"] == product["barcode"]:
             if item["qty"] >= product["qty"]:
                 
-             messagebox.showerror("สต๊อกไม่พอ", f"{product['name']} เหลือแค่ {product['qty']}")
+                messagebox.showerror("สต๊อกไม่พอ", f"{product['name']} เหลือแค่ {product['qty']}")
+                search_entry.delete(0, tk.END)
+                search_entry.focus()
+                return
+
+            item["qty"] += 1
+            item["total"] = item["qty"] * item["price"]
+            refresh_cart()
             search_entry.delete(0, tk.END)
             search_entry.focus()
             return
-
-        item["qty"] += 1
-        item["total"] = item["qty"] * item["price"]
-        refresh_cart()
-        search_entry.delete(0, tk.END)
-        search_entry.focus()
-        return
 
     cart.append({
         "barcode": product["barcode"],
@@ -94,6 +104,13 @@ def add_to_cart(event):
     barcode = values[0]
     name = values[1]
     price = float(values[2])
+    
+    product = find_product_by_barcode_db(barcode)
+
+    cost = 0
+    if product:
+        cost = product[2]
+
 
     for item in cart:
         if item["barcode"] == barcode:
@@ -106,6 +123,7 @@ def add_to_cart(event):
         "barcode": barcode,
         "name": name,
         "qty": 1,
+        "cost": cost,
         "price": price,
         "total": price
     })
@@ -227,8 +245,10 @@ def add_product_window():
             "qty": qty
         }
 
-        products.append(new_product)
-        save_json("products.json", products)
+        add_product(new_product)
+
+        products.clear()
+        products.extend(get_products())
 
         messagebox.showinfo("สำเร็จ", "เพิ่มสินค้าเรียบร้อย")
 
@@ -448,7 +468,7 @@ def migrate_sales_data():
 
 
 
-migrate_sales_data()
+# migrate_sales_data()
 
 def get_today_summary():
 
@@ -551,9 +571,8 @@ def checkout():
     receipt_text += "================================\n"
 
     for item in cart:
-        for product in products:
-            if item["barcode"] == product["barcode"]:
-                product["qty"] -= item["qty"]
+        print("กำลังลดสต๊อก:", item["barcode"], item["qty"])
+        update_product_stock(item["barcode"], item["qty"])
 
         sale = {
             "receipt_no": receipt_no,
@@ -561,15 +580,15 @@ def checkout():
             "barcode": item["barcode"],
             "name": item["name"],
             "qty": item["qty"],
-            "cost": item.get("cost, 0"),
+            "cost": item.get("cost", 0),
             "price": item["price"],
             "total": item["total"]
         }
 
         sales.append(sale)
 
-    save_json("products.json", products)
-    save_json("sales.json", sales)
+    
+    save_sales(sales)
 
     print(receipt_text)
     print_receipt(receipt_text)
