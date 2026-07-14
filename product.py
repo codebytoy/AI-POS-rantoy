@@ -1,218 +1,140 @@
-from storage import save_json
+import json
+import os
 
-products = []
+FILE_NAME = "products.json"
+
+
+def load_products():
+    if not os.path.exists(FILE_NAME):
+        return []
+
+    with open(FILE_NAME, "r", encoding="utf-8") as file:
+        return json.load(file)
+
+
+def save_products(products):
+    with open(FILE_NAME, "w", encoding="utf-8") as file:
+        json.dump(products, file, ensure_ascii=False, indent=4)
+
+
+def fix_negative_stock():
+    products = load_products()
+
+    for product in products:
+        if product["qty"] < 0:
+            product["qty"] = 0
+
+    save_products(products)
 
 
 def add_product():
-    barcode = input("สแกนบาร์โค้ดสินค้า: ")
+    products = load_products()
 
-    name = input("ชื่อสินค้า : ")
+    barcode = input("บาร์โค้ดสินค้า : ").strip()
+    name = input("ชื่อสินค้า : ").strip()
 
-    cost = float(input("ต้นทุน : "))
+    if name == "":
+        print("ชื่อสินค้าห้ามว่าง")
+        return
 
-    price = float(input("ราคาขาย : "))
+    try:
+        price = float(input("ราคาขาย : "))
+        qty = int(input("จำนวนสินค้า : "))
+    except ValueError:
+        print("กรุณากรอกตัวเลขให้ถูกต้อง")
+        return
 
-    qty = int(input("จำนวน : "))
+    if price < 0:
+        print("ราคาห้ามติดลบ")
+        return
 
+    if qty < 0:
+        print("จำนวนสินค้าห้ามติดลบ")
+        return
 
     product = {
         "barcode": barcode,
         "name": name,
-        "cost": cost,
         "price": price,
         "qty": qty
     }
 
     products.append(product)
-    save_json("products.json", products)
+    save_products(products)
 
-    print("\nเพิ่มสินค้าเรียบร้อย")
-
+    print("\nเพิ่มสินค้าเรียบร้อยครับ")
 
 
 def show_products():
+    products = load_products()
 
-    print("\n====== รายการสินค้า ======\n")
+    print("\n====== รายการสินค้า ======")
 
     if len(products) == 0:
         print("ยังไม่มีสินค้า")
         return
 
-    for i, product in enumerate(products, start=1):
-
+    for number, product in enumerate(products, start=1):
         print(
-            f'{product["name"]} | '
-            f'ต้นทุน {product.get("cost", 0):.2f} | '
-            f'ขาย {product["price"]:.2f} | '
-            f'คงเหลือ {product["qty"]}'
-)
+    f"{number}. {product.get('barcode', '-')} | "
+    f"{product['name']} | "
+    f"ราคา {product['price']:.2f} บาท | "
+    f"จำนวน {product['qty']} ชิ้น"
+    )
+        
+def search_product_by_barcode():
+    products = load_products()
 
-        print(f"   ราคา {product['price']} บาท")
+    barcode = input("กรอกบาร์โค้ดสินค้า : ").strip()
 
-        print(f"   จำนวน {product['qty']} ชิ้น")
+    for product in products:
+        if product.get("barcode") == barcode:
+            print("\nพบสินค้า")
+            print(f"ชื่อสินค้า : {product['name']}")
+            print(f"ราคา : {product['price']:.2f} บาท")
+            print(f"คงเหลือ : {product['qty']} ชิ้น")
+            return
 
-        print("------------------------")
+    print("\nไม่พบสินค้านี้")
 
-def show_stock_value():
-    if len(products) == 0:
-        print("ยังไม่มีสินค้าให้คำนวณ")
+def low_stock_report():
+    products = load_products()
+
+    try:
+        limit = int(input("แจ้งเตือนเมื่อเหลือไม่เกินกี่ชิ้น : "))
+    except ValueError:
+        print("กรุณากรอกจำนวนเป็นตัวเลข")
         return
 
-    total = 0
+    if limit < 0:
+        print("จำนวนต้องไม่ติดลบ")
+        return
 
-    print("\n===== มูลค่าสต็อกสินค้า =====")
-
-    for product in products:
-        value = product["price"] * product["qty"]
-        total = total + value
-
-        print(f"{product['name']} = {value} บาท")
-
-    print("--------------------")
-    print(f"มูลค่าสต็อกรวมทั้งหมด = {total} บาท")
-
-def search_product():
-    keyword = input("กรอกชื่อสินค้าที่ต้องการค้นหา: ")
-
-    found = False
+    low_stock_products = []
 
     for product in products:
-        if keyword in product["name"]:
-            print("พบสินค้า")
-            print(f"ชื่อ: {product['name']}")
-            print(f"ราคา: {product['price']} บาท")
-            print(f"จำนวน: {product['qty']} ชิ้น")
-            found = True
+        qty = product.get("qty", 0)
 
-    if found == False:
-        print("ไม่พบสินค้านี้")
+        if qty <= limit:
+            low_stock_products.append(product)
 
-def search_product_detail():
-    keyword = input("กรอกบาร์โค้ดหรือชื่อสินค้า: ")
+    print("\n========== สินค้าใกล้หมด ==========")
 
-    found = False
+    if len(low_stock_products) == 0:
+        print(f"ไม่มีสินค้าที่เหลือไม่เกิน {limit} ชิ้น")
+        return
 
-    print("\n===== ผลการค้นหา =====")
+    for product in low_stock_products:
+        barcode = product.get("barcode", "-")
+        name = product.get("name", "ไม่ทราบชื่อ")
+        qty = product.get("qty", 0)
 
-    for product in products:
-        if keyword in product["barcode"] or keyword in product["name"]:
-            print(f"บาร์โค้ด: {product['barcode']}")
-            print(f"ชื่อ: {product['name']}")
-            print(f"ต้นทุน: {product.get('cost', 0):.2f}")
-            print(f"ราคาขาย: {product['price']:.2f}")
-            print(f"คงเหลือ: {product['qty']} ชิ้น")
-            print("------------------------")
-            found = True
+        if qty == 0:
+            status = "สินค้าหมด"
+        else:
+            status = "ใกล้หมด"
 
-    if found == False:
-        print("ไม่พบสินค้านี้")
-
-def restock_product():
-    barcode = input("สแกนบาร์โค้ดสินค้าที่ต้องการเติมสต็อก: ")
-
-    for product in products:
-        if barcode == product["barcode"]:
-            print(f"พบสินค้า: {product['name']}")
-            print(f"คงเหลือเดิม: {product['qty']} ชิ้น")
-
-            add_qty = int(input("จำนวนที่รับเข้า: "))
-
-            if add_qty <= 0:
-                print("จำนวนต้องมากกว่า 0")
-                return
-
-            product["qty"] += add_qty
-            save_json("products.json", products)
-
-            print("เติมสต็อกเรียบร้อย")
-            print(f"{product['name']} คงเหลือใหม่: {product['qty']} ชิ้น")
-            return
-
-    print("ไม่พบสินค้านี้")
-
-def edit_product():
-    barcode = input("สแกนบาร์โค้ดสินค้าที่ต้องการแก้ไข: ")
-
-    for product in products:
-        if barcode == product["barcode"]:
-            print("\nพบสินค้า")
-            print(f"ชื่อเดิม: {product['name']}")
-            print(f"ต้นทุนเดิม: {product.get('cost', 0)}")
-            print(f"ราคาขายเดิม: {product['price']}")
-            print(f"จำนวนคงเหลือ: {product['qty']}")
-
-            new_name = input("ชื่อใหม่ (Enter = ไม่แก้): ")
-            new_cost = input("ต้นทุนใหม่ (Enter = ไม่แก้): ")
-            new_price = input("ราคาขายใหม่ (Enter = ไม่แก้): ")
-
-            if new_name != "":
-                product["name"] = new_name
-
-            if new_cost != "":
-                product["cost"] = float(new_cost)
-
-            if new_price != "":
-                product["price"] = float(new_price)
-
-            save_json("products.json", products)
-
-            print("แก้ไขข้อมูลสินค้าเรียบร้อย")
-            return
-
-    print("ไม่พบสินค้านี้")
-
-def delete_product():
-    barcode = input("สแกนบาร์โค้ดสินค้าที่ต้องการลบ: ")
-
-    for product in products:
-        if barcode == product["barcode"]:
-            print("\nพบสินค้า")
-            print(f"ชื่อ: {product['name']}")
-            print(f"ต้นทุน: {product.get('cost', 0)}")
-            print(f"ราคาขาย: {product['price']}")
-            print(f"คงเหลือ: {product['qty']}")
-
-            confirm = input("พิมพ์ yes เพื่อยืนยันการลบ: ")
-
-            if confirm == "yes":
-                products.remove(product)
-                save_json("products.json", products)
-                print("ลบสินค้าออกจากระบบเรียบร้อย")
-            else:
-                print("ยกเลิกการลบสินค้า")
-
-            return
-
-    print("ไม่พบสินค้านี้")
-
-def find_product_by_keyword():
-    keyword = input("พิมพ์ชื่อสินค้าหรือบาร์โค้ด: ")
-
-    results = []
-
-    for product in products:
-        if keyword in product["name"] or keyword in product["barcode"]:
-            results.append(product)
-
-    if len(results) == 0:
-        print("ไม่พบสินค้า")
-        return None
-
-    print("\n===== ผลการค้นหา =====")
-    for i, product in enumerate(results, start=1):
-        print(f"{i}. {product['name']} | ราคา {product['price']} บาท | เหลือ {product['qty']} ชิ้น")
-
-    choice = int(input("เลือกเลขสินค้า: "))
-
-    if 1 <= choice <= len(results):
-        return results[choice - 1]
-    else:
-        print("เลือกไม่ถูกต้อง")
-        return None    
-
-def find_product_by_barcode(products, barcode):
-    for product in products:
-        if str(product.get("barcode")) == str(barcode):
-            return product
-
-    return None
+        print(
+            f"{barcode} | {name} | "
+            f"เหลือ {qty} ชิ้น | {status}"
+        )

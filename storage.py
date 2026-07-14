@@ -29,3 +29,4 @@ def load_sales():
 
 def save_sales(data):
     save_json("sales.json", data)
+

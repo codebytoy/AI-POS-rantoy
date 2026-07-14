@@ -1,6 +1,6 @@
 import tkinter as tk
 import win32print
-from tkinter import ttk, messagebox, simpledialog
+from tkinter import ttk, messagebox
 from storage import (
     load_products,
     save_products,
@@ -8,7 +8,7 @@ from storage import (
     save_sales,
 )
 from database import get_products, add_product, update_product_stock, find_product_by_barcode_db
-from product import low_stock_report, search_product_by_barcode
+from product import find_product_by_barcode
 from datetime import datetime
 
 
@@ -43,69 +43,53 @@ def search_product():
 def barcode_scan(event=None):
     barcode = search_entry.get().strip()
 
-    if not barcode:
-        return
+    products = get_products()
+    product = find_product_by_barcode(products, barcode)
+    
+    
 
-    latest_products = get_products()
-    found_product = None
-
-    for product in latest_products:
-        if str(product.get("barcode", "")).strip() == barcode:
-            found_product = product
-            break
-
-    if found_product is None:
-        messagebox.showwarning(
-            "ไม่พบสินค้า",
-            f"ไม่พบสินค้าบาร์โค้ด {barcode}"
-        )
-        search_entry.select_range(0, tk.END)
-        search_entry.focus()
-        return
-
-    stock_qty = int(found_product.get("qty", 0))
-
-    if stock_qty <= 0:
-        messagebox.showwarning(
-            "สินค้าหมด",
-            f"{found_product['name']} ไม่มีสินค้าในสต๊อก"
-        )
+    if product is None:
+        messagebox.showinfo("ไม่พบสินค้า", "ไม่พบสินค้า กำลังเปิดหน้าต่างเพิ่มสินค้า")
         search_entry.delete(0, tk.END)
         search_entry.focus()
+        add_product_window()
         return
-
-    # ตรวจว่าสินค้านี้อยู่ในตะกร้าแล้วหรือยัง
+                
+    if product["qty"] <= 0:
+        messagebox.showerror("สินค้าหมด", f"{product['name']} หมดสต๊อกแล้ว")
+        search_entry.delete(0, tk.END)
+        search_entry.focus()
+            
+        return
+    
     for item in cart:
-        if str(item.get("barcode", "")) == barcode:
-            new_qty = item["qty"] + 1
-
-            if new_qty > stock_qty:
-                messagebox.showwarning(
-                    "สินค้าไม่พอขาย",
-                    f"{found_product['name']} เหลือเพียง {stock_qty} ชิ้น"
-                )
+        if item["barcode"] == product["barcode"]:
+            if item["qty"] >= product["qty"]:
+                
+                messagebox.showerror("สต๊อกไม่พอ", f"{product['name']} เหลือแค่ {product['qty']}")
                 search_entry.delete(0, tk.END)
                 search_entry.focus()
                 return
 
-            item["qty"] = new_qty
-            item["total"] = item["price"] * item["qty"]
-            break
+            item["qty"] += 1
+            item["total"] = item["qty"] * item["price"]
+            refresh_cart()
+            search_entry.delete(0, tk.END)
+            search_entry.focus()
+            return
 
-    else:
-        cart.append({
-            "barcode": str(found_product.get("barcode", "")),
-            "name": found_product["name"],
-            "price": float(found_product["price"]),
-            "qty": 1,
-            "total": float(found_product["price"])
-        })
+    cart.append({
+        "barcode": product["barcode"],
+        "name": product["name"],
+        "qty": 1,
+        "cost": product.get("cost") or 0,
+        "price": product["price"],
+        "total": product["price"]
+            })
 
     refresh_cart()
-
     search_entry.delete(0, tk.END)
     search_entry.focus()
-    
     
     
 
@@ -641,62 +625,6 @@ clear_button = ttk.Button(
     command=clear_cart
 )
 clear_button.pack(side="left", padx=10)
-
-def show_low_stock():
-    limit = simpledialog.askinteger(
-        "สินค้าใกล้หมด",
-        "แจ้งเตือนเมื่อเหลือไม่เกินกี่ชิ้น:",
-        initialvalue=5,
-        minvalue=0
-    )
-
-    if limit is None:
-        return
-
-    latest_products = get_products()
-    low_products = []
-
-    for product in latest_products:
-        qty = product.get("qty", 0)
-
-        if qty <= limit:
-            low_products.append(product)
-
-    if not low_products:
-        messagebox.showinfo(
-            "สินค้าใกล้หมด",
-            f"ไม่มีสินค้าที่เหลือไม่เกิน {limit} ชิ้น"
-        )
-        return
-
-    lines = []
-
-    for product in low_products:
-        barcode = product.get("barcode", "-")
-        name = product.get("name", "ไม่ทราบชื่อ")
-        qty = product.get("qty", 0)
-
-        if qty == 0:
-            status = "สินค้าหมด"
-        else:
-            status = "ใกล้หมด"
-
-        lines.append(
-            f"{barcode} | {name} | เหลือ {qty} ชิ้น | {status}"
-        )
-
-    messagebox.showwarning(
-        "สินค้าใกล้หมด",
-        "\n".join(lines)
-    )
-
-low_stock_button = ttk.Button(
-    payment_frame,
-    text="สินค้าใกล้หมด",
-    command=show_low_stock
-)
-
-low_stock_button.pack(side="left", padx=10)
 root.bind("<F2>", lambda event: checkout())
 root.bind("<Escape>", lambda event: clear_cart())
 

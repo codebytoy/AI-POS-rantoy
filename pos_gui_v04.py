@@ -1,3 +1,9 @@
+import os
+import tempfile
+import win32ui
+import win32con
+
+from PIL import Image, ImageDraw, ImageFont, ImageWin
 import tkinter as tk
 import win32print
 from tkinter import ttk, messagebox, simpledialog
@@ -434,36 +440,125 @@ money_label = tk.Label(
 )
 money_label.pack(side="left", padx=5)
 
+def update_change(event=None):
+    total = sum(item.get("total", 0) for item in cart)
+
+    money_text = money_entry.get().strip()
+
+    if money_text == "":
+        change_label.config(text="เงินทอน: 0.00 บาท")
+        return
+
+    try:
+        received = float(money_text)
+    except ValueError:
+        change_label.config(text="กรุณากรอกตัวเลข")
+        return
+
+    change = received - total
+
+    if change < 0:
+        change_label.config(
+            text=f"เงินยังขาด: {abs(change):.2f} บาท"
+        )
+    else:
+        change_label.config(
+            text=f"เงินทอน: {change:.2f} บาท"
+        )
 money_entry = tk.Entry(
     payment_frame,
     font=("Arial", 16),
     width=15
 )
 money_entry.pack(side="left", padx=5)
+change_label = ttk.Label(
+    payment_frame,
+    text="เงินทอน: 0.00 บาท",
+    font=("Tahoma", 12, "bold")
+)
+
+change_label.pack(side="left", padx=10)
+money_entry.bind("<KeyRelease>", update_change)
 
 def print_receipt(receipt_text):
-    print("กำลังส่งไปเครื่องพิมพ์...")
+    printer_name = win32print.GetDefaultPrinter()
+    print("เครื่องพิมพ์ที่ใช้:", printer_name)
 
-    printer_name = "POSPrinter POS80s"
+    # ขนาดประมาณกระดาษ 80 มม.
+    image_width = 576
+    padding = 20
+    line_height = 34
 
-    hPrinter = win32print.OpenPrinter(printer_name)
+    lines = receipt_text.splitlines()
+    image_height = max(300, padding * 2 + len(lines) * line_height)
+
+    image = Image.new("RGB", (image_width, image_height), "white")
+    draw = ImageDraw.Draw(image)
+
+    font_path = r"C:\Windows\Fonts\tahoma.ttf"
+
     try:
-        hJob = win32print.StartDocPrinter(
-            hPrinter,
-            1,
-            ("AI POS Receipt", None, "RAW")
+        font = ImageFont.truetype(font_path, 25)
+    except OSError:
+        font = ImageFont.load_default()
+
+    y = padding
+
+    for line in lines:
+        draw.text(
+            (padding, y),
+            line,
+            font=font,
+            fill="black"
         )
-        win32print.StartPagePrinter(hPrinter)
+        y += line_height
 
-        win32print.WritePrinter(hPrinter, receipt_text.encode("cp874", errors="replace"))
-        win32print.WritePrinter(hPrinter, b"\n\n\n\n\n")
+    printer_dc = win32ui.CreateDC()
+    printer_dc.CreatePrinterDC(printer_name)
 
-        win32print.EndPagePrinter(hPrinter)
-        win32print.EndDocPrinter(hPrinter)
+    printable_width = printer_dc.GetDeviceCaps(win32con.HORZRES)
+    printable_height = printer_dc.GetDeviceCaps(win32con.VERTRES)
 
-        print("ส่งใบเสร็จไปเครื่องพิมพ์แล้ว")
+    scale = printable_width / image_width
+    print_height = int(image.height * scale)
+
+    printer_dc.StartDoc("AI POS Receipt")
+    printer_dc.StartPage()
+
+    dib = ImageWin.Dib(image)
+
+    dib.draw(
+        printer_dc.GetHandleOutput(),
+        (0, 0, printable_width, min(print_height, printable_height))
+    )
+
+    printer_dc.EndPage()
+    printer_dc.EndDoc()
+    printer_dc.DeleteDC()
+
+    # ส่งคำสั่งตัดกระดาษ
+    h_printer = win32print.OpenPrinter(printer_name)
+
+    try:
+        win32print.StartDocPrinter(
+            h_printer,
+            1,
+            ("Cut Receipt", None, "RAW")
+        )
+        win32print.StartPagePrinter(h_printer)
+
+        win32print.WritePrinter(
+            h_printer,
+            b"\n\n\n\x1d\x56\x00"
+        )
+
+        win32print.EndPagePrinter(h_printer)
+        win32print.EndDocPrinter(h_printer)
+
     finally:
-        win32print.ClosePrinter(hPrinter)
+        win32print.ClosePrinter(h_printer)
+
+    print("พิมพ์ใบเสร็จภาษาไทยและตัดกระดาษแล้ว")
 
 def migrate_sales_data():
     changed = 0
@@ -536,6 +631,9 @@ def refresh_dashboard():
         f"💚 กำไรวันนี้: {summary['profit']:.2f} บาท\n"
         f"⚠️ สินค้าใกล้หมด: {low_stock_count} รายการ"
     )
+
+
+
 
 def checkout():
     print("กดคิดเงินแล้ว")
@@ -630,10 +728,15 @@ checkout_button = ttk.Button(
 )
 checkout_button.pack(side="left", padx=10)    
 
+
+
+
+
 def clear_cart():
     cart.clear()
     refresh_cart()
     money_entry.delete(0, tk.END)
+    change_label.config(text="เงินทอน: 0.00 บาท")
 clear_button = ttk.Button(
     payment_frame,
     text="ล้างตะกร้า",
